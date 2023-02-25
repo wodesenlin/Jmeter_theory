@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="ant-jmeter-test" default="208monitor" basedir=".">
+    <tstamp>
+        <format property="time" pattern="yyyyMMddhhmm" />
+    </tstamp>
+    <!-- 需要改成自己本地的 Jmeter 目录-->
+    <property name="jmeter.home" value="D:\Tool\apache-jmeter-4.0"/>
+	<!-- 需Jenkins 用于读取最新迭代生成结果文件的目录 -->
+	<property name="jmeter.jenkins.report" value="D:\timed_task\208-baidu\report\display"/>
+	
+    <!-- jmeter生成jtl格式的结果报告的路径-->
+    <property name="jmeter.result.jtl.dir" value="D:\timed_task\208-baidu\report"/>
+    <!-- jmeter生成html格式的结果报告的路径 Dashboard Report使用此目录-->
+    <property name="jmeter.result.html.dir" value="D:\timed_task\208-baidu\report"/>
+	<!-- Jenkins 的workspace-->
+    <!-- <property name="jenkins.works" value="D:\Jenkins\workspace\report"/> -->
+	
+	<property name="jenkins.works" value="D:\Jenkins\workspace\rr" />
+	
+    <!-- 生成的报告的前缀-->
+    <property name="ReportName" value="MonitorReport" />
+
+    <property name="jmeter.result.htmlName" value="${jmeter.result.html.dir}/${ReportName}${time}.html" />
+    
+	<target name="208monitor">
+        <antcall target="test" />
+		<!-- <antcall target="generate-new-report" /> -->
+		<!-- <antcall target="copy-html" /> -->
+        <!-- <antcall target="report" /> -->
+		
+    </target>
+	
+    <target name="test">
+        <taskdef name="jmeter" classname="org.programmerplanet.ant.taskdefs.jmeter.JMeterTask" />
+        <jmeter jmeterhome="${jmeter.home}" resultlog="${jmeter.result.jtl.dir}/${ReportName}${time}.jtl">
+            <!-- 声明要运行的脚本。"*.jmx"指包含此目录下的所有jmeter脚本-->
+            <testplans dir="D:\timed_task\208-baidu" includes="monitor208.jmx" />
+            <!-- 增加如下一行代码，否则会报错误，经测试使用jmeter3.0版本不增加下面一行代码不会报告错误-->
+            <!--<property name="jmeter.save.saveservice.output_format" value="xml"/>-->
+        </jmeter>
+		<!-- 用于Jenkins Performance test Report plugin读取此文件 -->
+		<copy file="${jmeter.result.jtl.dir}/${ReportName}${time}.jtl" tofile="${jmeter.jenkins.report}/MonitorReport.jtl"/>
+		
+    </target>
+	
+	<!-- 使用Jmeter自带的 Dashboard Report功能。此功能仅支持jtl是cvs，即jmeter.save.saveservice.output_format=csv。
+	因此不能同时支持ant生成html报告 -->
+	
+	<target name="generate-new-report">
+		<exec executable="${jmeter.home}/bin/jmeter.bat">
+			<arg value="-g"/>
+			<arg value="${jmeter.result.jtl.dir}/${ReportName}${time}.jtl"/>
+			<arg value="-o"/>
+			<arg value="${jmeter.result.html.dir}/dashboard${time}"/>
+		</exec>				
+	</target>
+	
+	<!-- Copy report html if needed -->
+	
+    <target name="copy-html">
+
+		<echo> ${jenkins.works}</echo>
+		<echo> ${jmeter.result.html.dir}/rr</echo>
+		
+		<!-- 复制文件夹以及其子文件夹中的所有内容到另一个目录 -->
+		
+	<!-- 	<copy todir="${jenkins.works}/dashboard${time}" >  
+			<fileset dir="${jmeter.result.html.dir}/dashboard${time}">  
+			</fileset>
+		</copy> -->
+		
+		<copy todir="${jenkins.works}/dest">
+		  <fileset dir="${jmeter.result.html.dir}" includes="dashboard${time}/**"/>
+		</copy>
+		
+		<!-- 复制文件夹以及其子文件夹中的所有内容到另一个目录 includes="**" -->
+		<!-- <echo> ${jenkins.works}</echo> -->
+		<!-- <echo> ${jmeter.result.html.dir}/dashboard${time}</echo> -->
+		
+		<!-- <copy todir="${jenkins.works}/2" verbose="true">
+		
+            <fileset dir="${jmeter.result.html.dir}/dashboard${time}" includes="**"  >
+            </fileset>
+               
+        </copy> -->
+			
+		<!-- <copy todir="${jenkins.works}/dashboard${time}" >  
+			<fileset dir="${jmeter.result.html.dir}/dashboard${time}">  
+			</fileset>
+		</copy> -->
+		
+		
+		<!-- 以下形式无法copy  1、2、 原因是源目录最后有多余空格-->
+		<!-- 1、-->
+		<!-- <copy todir="${jenkins.works}">
+		
+            <fileset dir="${jmeter.result.html.dir}/dashboard${time} " >
+               <include name="index.html" />
+			</fileset>
+        </copy> -->
+		
+		<!-- 2、-->
+		<!-- <copy todir="${jenkins.works}">
+		
+            <fileset dir="${jmeter.result.html.dir}/dashboard${time}/ " >  
+			</fileset>
+        </copy> -->
+		
+		
+		<!-- 复制文件夹中的所有内容（不包括字文件夹中的内容）到另一个目录 ="* or ***" -->
+		<!-- <copy todir="${jenkins.works}/3" verbose="true">
+		
+            <fileset dir="${jmeter.result.html.dir}/dashboard${time}" includes="***"  >
+            </fileset>               
+        </copy>
+			
+		<copy todir="${jenkins.works}" verbose="true">
+		
+            <fileset dir="${jmeter.result.html.dir}/dashboard${time}/" includes="${jmeter.result.html.dir}/**"  >
+            </fileset>         
+        </copy> -->
+		
+		<!-- <copy todir="${jenkins.works}/test" flatten="true">
+		  <path>
+			<pathelement path="${jmeter.result.html.dir}/dashboard${time}/"/>
+		  </path>
+		</copy> -->
+		
+    </target>
+	
+    <!-- html报告中时间显示为NAN，原因是ant中缺失了两个lib库  xalan-2.7.2.jar和serializer-2.7.2.jar ，将这两个库拷贝到ant的lib目录下，或者在这里增加如下代码均可解决-->
+    <path id="xslt.classpath">
+        <fileset dir="${jmeter.home}/lib" includes="xalan*.jar"/>
+        <fileset dir="${jmeter.home}/lib" includes="serializer*.jar"/>
+    </path>
+    
+    <!-- html报告中Date report这里的时间没有正确显示出来，原因是未设定report.datestamp 属性值-->
+    <target name="report">
+        <tstamp> <format property="report.datestamp" pattern="yyyy/MM/dd HH:mm" /></tstamp>
+        <xslt 
+              classpathref="xslt.classpath"
+              force="true"
+              in="${jmeter.result.jtl.dir}/${ReportName}${time}.jtl"
+              out="${jmeter.result.htmlName}"
+              style="${jmeter.home}/extras/jmeter-results-detail-report_21.xsl">
+              <param name="dateReport" expression="${report.datestamp}"/>
+       </xslt>
+	   
+	   <copy file="${jmeter.result.htmlName}" tofile="${jmeter.home}/report/display/html_report${time}.html"/>
+	   
+        <!-- 因为上面生成报告的时候，不会将相关的图片也一起拷贝至目标目录，所以，需要手动拷贝 -->
+        <copy todir="${jmeter.result.html.dir}">
+            <fileset dir="${jmeter.home}/extras">
+                <include name="collapse.png" />
+                <include name="expand.png" />
+            </fileset>
+        </copy>
+    </target>
+	
+	<!-- Copy report images if needed -->
+   <!--  <target name="copy-images" depends="verify-images" unless="samepath">
+        <copy file="${basedir}/expand.png" tofile="${testpath}/expand.png"/>
+        <copy file="${basedir}/collapse.png" tofile="${testpath}/collapse.png"/>
+    </target> -->
+	
+	
+</project>
